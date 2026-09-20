@@ -9,11 +9,20 @@ from app.schemas.schemas import (
     CallCreate,
     CallOut,
     CarOut,
+    CarUpdate,
     CongestionFloor,
+    DispatchOut,
     DispatchRequest,
     LogOut,
 )
-from app.services.dispatch_engine import CallRequest, CarState, congestion_by_floor, pick_car
+from app.services.dispatch_engine import (
+    REASON_RESERVED,
+    CallRequest,
+    CarState,
+    congestion_by_floor,
+    evaluate,
+    pick_car,
+)
 
 api_router = APIRouter()
 
@@ -31,6 +40,17 @@ def buildings(db: Session = Depends(get_db)):
 @api_router.get("/cars", response_model=list[CarOut])
 def cars(db: Session = Depends(get_db)):
     return db.scalars(select(ElevatorCar).order_by(ElevatorCar.id)).all()
+
+
+@api_router.patch("/cars/{car_id}", response_model=CarOut)
+def update_car(car_id: int, body: CarUpdate, db: Session = Depends(get_db)):
+    car = db.get(ElevatorCar, car_id)
+    if not car:
+        raise HTTPException(404, "轿厢不存在")
+    car.accessible = body.accessible
+    db.commit()
+    db.refresh(car)
+    return car
 
 
 @api_router.get("/calls", response_model=list[CallOut])
@@ -52,6 +72,7 @@ def create_call(body: CallCreate, db: Session = Depends(get_db)):
         floor=body.floor,
         direction=body.direction,
         passengers=body.passengers,
+        needs_accessible=body.needs_accessible,
     )
     db.add(ticket)
     db.commit()
@@ -59,7 +80,7 @@ def create_call(body: CallCreate, db: Session = Depends(get_db)):
     return ticket
 
 
-@api_router.post("/dispatch", response_model=CallOut)
+@api_router.post("/dispatch", response_model=DispatchOut)
 def dispatch(body: DispatchRequest, db: Session = Depends(get_db)):
     ticket = db.get(CallTicket, body.call_id)
     if not ticket:
@@ -70,16 +91,42 @@ def dispatch(body: DispatchRequest, db: Session = Depends(get_db)):
         select(ElevatorCar).where(ElevatorCar.building_id == ticket.building_id)
     ).all()
     cars = [
-        CarState(c.id, c.floor, c.direction, c.load, c.capacity) for c in car_rows
+        CarState(c.id, c.floor, c.direction, c.load, c.capacity, c.accessible)
+        for c in car_rows
     ]
-    call = CallRequest(ticket.id, ticket.floor, ticket.direction, ticket.passengers)
-    best = pick_car(cars, call)
+    # 为其他 waiting 无障碍呼梯预留的座位数（本单若是无障碍单则不为自己预留）
+    reserved = sum(
+        c.passengers
+        for c in db.scalars(
+            select(CallTicket).where(
+                CallTicket.building_id == ticket.building_id,
+                CallTicket.status == "waiting",
+                CallTicket.needs_accessible.is_(True),
+                CallTicket.id != ticket.id,
+            )
+        ).all()
+    )
+    call = CallRequest(
+        ticket.id,
+        ticket.floor,
+        ticket.direction,
+        ticket.passengers,
+        ticket.needs_accessible,
+    )
+    results = evaluate(cars, call, reserved)
+    best = pick_car(cars, call, reserved)
+    labels = {c.id: c.label for c in car_rows}
     if best is None:
-        db.add(DispatchLog(call_id=ticket.id, car_id=None, detail="全部轿厢满员，拒绝派工"))
+        reasons = "；".join(
+            f"{labels[r.car_id]}：{r.reason}" for r in results if not r.accepted
+        ) or "楼内无轿厢"
+        detail = f"拒绝派工 — {reasons}"[:240]
+        db.add(DispatchLog(call_id=ticket.id, car_id=None, detail=detail))
         ticket.status = "rejected"
         db.commit()
         db.refresh(ticket)
-        raise HTTPException(409, "无可用轿厢（满员）")
+        msg = "无可用无障碍轿厢" if ticket.needs_accessible else "无可用轿厢（满员或无障碍预留）"
+        raise HTTPException(409, msg)
     car = db.get(ElevatorCar, best.car_id)
     assert car
     ticket.status = "assigned"
@@ -88,16 +135,20 @@ def dispatch(body: DispatchRequest, db: Session = Depends(get_db)):
     car.load += ticket.passengers
     car.floor = ticket.floor
     car.direction = ticket.direction
-    db.add(
-        DispatchLog(
-            call_id=ticket.id,
-            car_id=car.id,
-            detail=f"派予 {car.label}，评分 {best.score:.1f}（同向/距离综合）",
-        )
-    )
+    detail = f"派予 {car.label}，评分 {best.score:.1f}（同向/距离综合）"
+    if ticket.needs_accessible:
+        detail += "；无障碍呼梯"
+    skipped = [
+        labels[r.car_id]
+        for r in results
+        if not r.accepted and r.reason == REASON_RESERVED
+    ]
+    if skipped:
+        detail += f"；跳过 {'、'.join(skipped)}（无障碍预留）"
+    db.add(DispatchLog(call_id=ticket.id, car_id=car.id, detail=detail[:240]))
     db.commit()
     db.refresh(ticket)
-    return ticket
+    return DispatchOut(call=CallOut.model_validate(ticket), detail=detail)
 
 
 @api_router.get("/replay", response_model=list[LogOut])

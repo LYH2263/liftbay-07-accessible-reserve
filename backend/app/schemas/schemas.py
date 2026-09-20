@@ -17,7 +17,12 @@ class CarOut(BaseModel):
     direction: str
     load: int
     capacity: int
+    accessible: bool
     model_config = {"from_attributes": True}
+
+
+class CarUpdate(BaseModel):
+    accessible: bool
 
 
 class CallOut(BaseModel):
@@ -26,6 +31,7 @@ class CallOut(BaseModel):
     floor: int
     direction: str
     passengers: int
+    needs_accessible: bool
     status: str
     assigned_car_id: int | None
     score: str
@@ -38,10 +44,16 @@ class CallCreate(BaseModel):
     floor: int = Field(ge=1)
     direction: str
     passengers: int = Field(ge=1, le=8)
+    needs_accessible: bool = False
 
 
 class DispatchRequest(BaseModel):
     call_id: int
+
+
+class DispatchOut(BaseModel):
+    call: CallOut
+    detail: str
 
 
 class LogOut(BaseModel):

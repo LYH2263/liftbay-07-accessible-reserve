@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -23,6 +23,7 @@ class ElevatorCar(Base):
     direction: Mapped[str] = mapped_column(String(10), default="idle")
     load: Mapped[int] = mapped_column(Integer, default=0)
     capacity: Mapped[int] = mapped_column(Integer, default=10)
+    accessible: Mapped[bool] = mapped_column(Boolean, default=False)
     building: Mapped[Building] = relationship(back_populates="cars")
 
 
@@ -33,6 +34,7 @@ class CallTicket(Base):
     floor: Mapped[int] = mapped_column(Integer)
     direction: Mapped[str] = mapped_column(String(10))
     passengers: Mapped[int] = mapped_column(Integer, default=1)
+    needs_accessible: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(20), default="waiting")
     assigned_car_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score: Mapped[str] = mapped_column(String(40), default="")

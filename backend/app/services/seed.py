@@ -13,7 +13,11 @@ def seed_if_empty(db: Session) -> None:
     cars = [
         ElevatorCar(building_id=b.id, label="A1", floor=3, direction="up", load=2, capacity=10),
         ElevatorCar(building_id=b.id, label="A2", floor=12, direction="down", load=4, capacity=10),
-        ElevatorCar(building_id=b.id, label="A3", floor=1, direction="idle", load=0, capacity=8),
+        # 无障碍车：剩余容量 8-6=2，刚好够下面那笔 2 人无障碍 waiting
+        ElevatorCar(
+            building_id=b.id, label="A3", floor=1, direction="idle",
+            load=6, capacity=8, accessible=True,
+        ),
         ElevatorCar(building_id=b.id, label="A4", floor=8, direction="idle", load=8, capacity=8),
     ]
     db.add_all(cars)
@@ -23,7 +27,14 @@ def seed_if_empty(db: Session) -> None:
     c3 = CallTicket(
         building_id=b.id, floor=9, direction="up", passengers=3, status="assigned", assigned_car_id=cars[0].id, score="72.0"
     )
-    db.add_all([c1, c2, c3])
+    # 无障碍 waiting：2 人，正好占满 A3 的剩余容量
+    c4 = CallTicket(
+        building_id=b.id, floor=4, direction="up", passengers=2,
+        needs_accessible=True, status="waiting",
+    )
+    # 普通呼梯：离 A3（1 楼）比无障碍单（4 楼）更近，用来验证预留不被抢光
+    c5 = CallTicket(building_id=b.id, floor=2, direction="up", passengers=2, status="waiting")
+    db.add_all([c1, c2, c3, c4, c5])
     db.flush()
     db.add(DispatchLog(call_id=c3.id, car_id=cars[0].id, detail="同向优先派予 A1，评分 72.0"))
     db.commit()

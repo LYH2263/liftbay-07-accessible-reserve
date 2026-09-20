@@ -237,6 +237,23 @@ button {
 }
 .mono { font-family: "IBM Plex Mono", monospace; }
 .err { color: #ff8e8e; } .ok { color: #7ddea0; }
+.hint { font-size: .8rem; color: var(--shaft-muted); margin: 0 0 .8rem; }
+
+/* 无障碍标记与预留高亮 */
+.a11y-badge { color: var(--shaft-teal); font-size: 1em; }
+.check-a11y {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .9rem; color: var(--text); cursor: pointer; user-select: none;
+}
+.check-a11y input[type="checkbox"] {
+  width: 16px; height: 16px; padding: 0; margin: 0;
+  accent-color: var(--shaft-teal); cursor: pointer;
+}
+.car-a11y {
+  font-size: .68rem; color: var(--shaft-muted);
+  justify-content: center; margin: 0 auto .4rem;
+}
+.row-a11y td { background: rgba(47, 224, 200, .07); }
 
 /* Keep page-level shaft helpers for /cars if visited */
 .shaft-wrap { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: .5rem; }

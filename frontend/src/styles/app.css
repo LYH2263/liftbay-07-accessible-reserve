@@ -237,6 +237,18 @@ button {
 }
 .mono { font-family: "IBM Plex Mono", monospace; }
 .err { color: #ff8e8e; } .ok { color: #7ddea0; }
+.tag {
+  display: inline-block; padding: 0 .45rem; border-radius: 999px;
+  background: rgba(47, 224, 200, .12); color: var(--shaft-teal);
+  border: 1px solid var(--shaft-teal); font-size: .72rem; line-height: 1.4;
+  white-space: nowrap;
+}
+.tag--amber {
+  background: rgba(240, 162, 2, .12); color: var(--shaft-amber);
+  border-color: var(--shaft-amber);
+}
+.check-label { display: inline-flex; align-items: center; gap: .35rem; font-size: .92rem; }
+.check-label input { accent-color: var(--shaft-teal); }
 
 /* Keep page-level shaft helpers for /cars if visited */
 .shaft-wrap { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: .5rem; }
@@ -252,4 +264,6 @@ button {
 }
 .floor-slot.has-car { background: var(--car); color: white; border-color: #5eb3d8; font-weight: 700; }
 .floor-slot.has-call { box-shadow: inset 0 0 0 2px var(--call); }
+.car-acc-toggle { margin-top: 4px; padding: .3rem .2rem; font-size: .68rem; font-weight: 400; background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+.car-acc-toggle:hover { border-color: var(--shaft-teal); color: var(--shaft-teal); }
 .congestion-bar { height: 14px; background: var(--call); border-radius: 4px; }

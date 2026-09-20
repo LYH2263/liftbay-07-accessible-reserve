@@ -11,7 +11,7 @@ const floorNav = [
   { to: "/congestion", label: "堵", full: "拥堵", floorHint: "G" },
 ];
 
-type Car = { id: number; label: string; floor: number; direction: string; load: number; capacity: number };
+type Car = { id: number; label: string; floor: number; direction: string; load: number; capacity: number; accessible?: boolean };
 type Call = { id: number; floor: number; status: string };
 type B = { floors: number; name?: string };
 
@@ -81,7 +81,7 @@ export default function Layout() {
           {cars.map((car) => (
             <div className="elev-shaft" key={car.id}>
               <div className="elev-shaft-cap">
-                {car.label}
+                {car.accessible ? "♿ " : ""}{car.label}
                 <span className="mono">
                   {car.load}/{car.capacity}
                 </span>
